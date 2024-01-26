@@ -320,7 +320,7 @@ def selectAccount():
         permission_set_desc = permission_set_details.get('Description', '')
         print(f"\t{permission_set_name} - {permission_set_desc}")
 
-    print(f"\n\nPlease wait... processing full list of assignments... this can take several minutes.\n\n")
+    print(f"\n\nPlease wait... processing full list of assignments... this can take a few minutes.\n\n")
     start_time = time.time()
 
     # print(f"\nThe following is a list of provisioned to account {account_num} - {account_name}:\n")
