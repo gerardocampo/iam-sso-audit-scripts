@@ -296,14 +296,18 @@ def selectAccount():
 
     data_at_index = accounts_sorted[selected_index]
 
-    ## Check if the selected index is within the valid range.
-    if 0 <= selected_index < len(accounts_sorted):
-        print(f"\nSelected: {data_at_index}")
-        account_num = data_at_index.account_num
-        account_name = data_at_index.account_name
-    else:
-        print("Invalid selection. Please choose a number within the valid range.")
-        sys.exit(1)
+    print(f"\nSelected: {data_at_index}")
+    account_num = data_at_index.account_num
+    account_name = data_at_index.account_name
+    
+    # ## Check if the selected index is within the valid range.
+    # if 0 <= selected_index < len(accounts_sorted):
+    #     print(f"\nSelected: {data_at_index}")
+    #     account_num = data_at_index.account_num
+    #     account_name = data_at_index.account_name
+    # else:
+    #     print("Invalid selection. Please choose a number within the valid range.")
+    #     sys.exit(1)
     
     print(f"\nThe following permission sets are provisioned to account {account_num} - {account_name}:\n")
     permission_sets_provisioned_to_account_list_pages = sso_admin_client.get_paginator('list_permission_sets_provisioned_to_account').paginate(
@@ -326,7 +330,7 @@ def selectAccount():
     # print(f"\nThe following is a list of provisioned to account {account_num} - {account_name}:\n")
     
     ## TODO: Here we can display all the account assignments provisioned for every user/group, but it would be abit of work.
-    ## This is a LARGE RECURSING OPERATION.
+    ## This is a LARGE RECURSING OPERATION, which usually takes 2-4 minutes.
     for user in users:
         requesting_principal_type = "USER"
         requesting_principal_id = user.principal_id
@@ -393,26 +397,6 @@ def getAccountAssignmentsForPrincipal(requesting_principal_id, requesting_princi
             permset_desc=permission_set_desc
         ))
 
-    # assignments_for_principals_sorted = sorted(assignments_for_principals, key=lambda x: x.effecting_principal_name)
-    # for assignment in assignments_for_principals_sorted:
-    #     print(f"\t Access to account # {assignment.account_num}, with permission set {assignment.permset_name}, via {assignment.effecting_principal_type} {assignment.effecting_principal_name}.")
-
-
-    # ## Number of accounts principal is assigned to.
-    # assignments_for_principals_count = len(assignments_for_principals)
-
-    # ## Evaluate what accounts the principal does not have access to.
-    # unique_accounts_in_assignments = [x.account_num for x in assignments_for_principals]
-    # unique_accounts_in_assignments = list(set(unique_accounts_in_assignments))
-    # print(f"\nThe principal {requesting_principal_name} has access to these {assignments_for_principals_count} accounts: ")
-    # for account in unique_accounts_in_assignments:
-    #     print(f"\t{account}")
-    # difference = list(set(account_list) - set(unique_accounts_in_assignments))
-    # print(f"\nThe principal {requesting_principal_name} does NOT have access to these accounts: ")
-    # for account in difference:
-    #     print(f"\t{account}")
-    # print(f"\n")
-
 
     # ## Get list of permission sets in Identity Store.
     # report_desc = 'List of permission sets in Identity Center.'
@@ -422,29 +406,6 @@ def getAccountAssignmentsForPrincipal(requesting_principal_id, requesting_princi
     # permission_sets_list = permission_sets_list_build['PermissionSets']
     # permission_sets_list_json = json.dumps(permission_sets_list, indent=4)
     # print(f"{permission_sets_list_json}\n")
-
-
-    # ## Describe a permission set.
-    # report_desc = 'Details of a permission set in Identity Center.'
-    # print(f"\n{report_desc}")
-    # permission_set_arn = "arn:aws:sso:::permissionSet/ssoins-72232e9aa1bbc720/ps-d754ab4735d8e3fb"
-    # permission_set_details_response = sso_admin_client.describe_permission_set(InstanceArn=sso_instance_arn, PermissionSetArn=permission_set_arn)
-    # permission_set_details = permission_set_details_response['PermissionSet']
-    # permission_set_details_json = json.dumps(permission_set_details, indent=4, default=serialize_datetime)
-    # # print(f"\n{permission_set_details}\n")
-    # print(f"{permission_set_details_json}\n")
-
-
-    # ## Get list of permission sets provisioned to an account in Identity Center.
-    # report_desc = 'List of permission sets provisioned to an account in Identity Center.'
-    # print(f"\n{report_desc}")
-    # permission_sets_provisioned_to_account_list_pages = sso_admin_client.get_paginator('list_permission_sets_provisioned_to_account').paginate(
-    #     InstanceArn=sso_instance_arn,
-    #     AccountId='949785322186'
-    # )
-    # permission_sets_provisioned_to_account_list = permission_sets_provisioned_to_account_list_pages.build_full_result()
-    # permission_sets_provisioned_to_account_list_json = json.dumps(permission_sets_provisioned_to_account_list, indent=4)
-    # print(f"{permission_sets_provisioned_to_account_list_json}\n")
 
 
     # ## Get list of accounts for a provisioned permission set in Identity Store.
