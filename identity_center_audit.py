@@ -9,6 +9,7 @@ from pydantic import BaseModel
 assignments_for_principals = []
 users = []
 groups = []
+group_members = []
 accounts = []
 
 ## Data model policies for various lists.  Using pydantic to allow this data to be manipulated and called more easily.
@@ -71,7 +72,7 @@ def main(profile_name=None):
     ###############################################################
     ## IAM IDENTITY CENTER.
     ## Get some initial housekeeping done in Identity Center.
-    global sso_admin_client, identity_store_id, sso_instance_arn
+    global sso_admin_client, identitystore_client, identity_store_id, sso_instance_arn
     sso_admin_client = session.client('sso-admin', region_name=AWS_REGION)
     identitystore_client = session.client('identitystore', region_name=AWS_REGION)
     sso_instance = sso_admin_client.list_instances()
@@ -164,38 +165,53 @@ def selectUser():
 
     ## Check if the selected index is within the valid range.
     if 0 <= selected_index < len(users_sorted):
-        print(f"\nSelected: {data_at_index}")
+        print(f"\nSelected: {data_at_index}\n")
         requesting_principal_name = data_at_index.principal_name
         requesting_principal_id = data_at_index.principal_id
         requesting_principal_type = "USER"
-        # print(f"\nSelected principal_name: {requesting_principal_name}")
     else:
         print("Invalid selection. Please choose a number within the valid range.")
         sys.exit(1)
 
     getAccountAssignmentsForPrincipal(requesting_principal_id, requesting_principal_name, requesting_principal_type)
 
-    report_desc = f'List of account assignments for {requesting_principal_type} principal {requesting_principal_id} in Identity Center:\n'
-    print(f"{report_desc}")
+    print(f"\nThe {requesting_principal_type} {requesting_principal_name} has the following account assignments in Identity Center:\n")
 
-    assignments_for_principals_sorted = sorted(assignments_for_principals, key=lambda x: x.effecting_principal_name)
+    ## Sort the list by "".
+    # assignments_for_principals_sorted = sorted(assignments_for_principals, key=lambda x: x.effecting_principal_name)
+    assignments_for_principals_sorted = sorted(assignments_for_principals, key=lambda x: x.account_num)
+
     for assignment in assignments_for_principals_sorted:
         print(f"\t{assignment.requesting_principal_type} has access to account # {assignment.account_num}, with permission set {assignment.permset_name}, via {assignment.effecting_principal_type} {assignment.effecting_principal_name}.")
 
-    ## Number of accounts principal is assigned to.
+    ## Get some simple metrics regarding the accounts principal is assigned to.
     unique_accounts_in_assignments = [x.account_num for x in assignments_for_principals]
-    unique_accounts_in_assignments.sort()
-    unique_accounts_in_assignments = list(set(unique_accounts_in_assignments))
+    ## Sort the account numbers as strings (preserving leading zeros).
+    unique_accounts_in_assignments = sorted(unique_accounts_in_assignments, key=lambda x: (len(x), x))
+    ## Remove duplicates while preserving the sorted order.
+    unique_accounts_in_assignments = list(dict.fromkeys(unique_accounts_in_assignments))
+    ## Count the number of the unique accounts.
     unique_accounts_in_assignments_count = len(unique_accounts_in_assignments)
 
-    ## Evaluate what accounts the principal does and does not have access to.    
-    print(f"\n\nThe principal {requesting_principal_name} has access to these {unique_accounts_in_assignments_count} accounts: \n")
-    for account in unique_accounts_in_assignments:
-        print(f"\t{account}")
+    ## Evaluate what accounts the principal has access to, and does not have access to.
+    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} has access to {unique_accounts_in_assignments_count} account(s): \n")
+    for acct_num in unique_accounts_in_assignments:
+        ## Enrich this data with the account_name.
+        acct_name = ""
+        for a in accounts:
+            if acct_num == a.account_num:
+                acct_name = a.account_name
+        print(f"\t{acct_num} , {acct_name}")
+
     difference = list(set(account_list) - set(unique_accounts_in_assignments))
-    print(f"\n\nThe principal {requesting_principal_name} does NOT have access to these accounts: \n")
-    for account in difference:
-        print(f"\t{account}")
+    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} does NOT have access to the following account(s): \n")
+    for acct_num in difference:
+        ## Enrich this data with the account_name.
+        acct_name = ""
+        for a in accounts:
+            if acct_num == a.account_num:
+                acct_name = a.account_name
+        print(f"\t{acct_num} , {acct_name}") 
     print(f"\n")
 
 
@@ -231,38 +247,77 @@ def selectGroup():
 
     ## Check if the selected index is within the valid range.
     if 0 <= selected_index < len(groups_sorted):
-        print(f"\nSelected: {data_at_index}")
+        print(f"\nSelected: {data_at_index}\n")
         requesting_principal_name = data_at_index.principal_name
         requesting_principal_id = data_at_index.principal_id
         requesting_principal_type = "GROUP"
-        # print(f"\nSelected principal_name: {requesting_principal_name}")
     else:
         print("Invalid selection. Please choose a number within the valid range.")
         sys.exit(1)
 
     getAccountAssignmentsForPrincipal(requesting_principal_id, requesting_principal_name, requesting_principal_type)
 
-    report_desc = f'List of account assignments for {requesting_principal_type} principal {requesting_principal_id} in Identity Center:\n'
-    print(f"{report_desc}")
+    print(f"\nThe {requesting_principal_type} {requesting_principal_name} has the following account assignments in Identity Center:\n")
 
-    assignments_for_principals_sorted = sorted(assignments_for_principals, key=lambda x: x.effecting_principal_name)
+    ## Sort the list by "".
+    # assignments_for_principals_sorted = sorted(assignments_for_principals, key=lambda x: x.effecting_principal_name)
+    assignments_for_principals_sorted = sorted(assignments_for_principals, key=lambda x: x.account_num)
+
     for assignment in assignments_for_principals_sorted:
-        print(f"\t{assignment.requesting_principal_type} has access to account # {assignment.account_num}, with permission set {assignment.permset_name}, via {assignment.effecting_principal_type} {assignment.effecting_principal_name}.")
+        print(f"\t{assignment.requesting_principal_name} ({assignment.requesting_principal_type}) has access to account # {assignment.account_num}, with permission set {assignment.permset_name}.")
 
-    ## Number of accounts principal is assigned to.
+    ## Get some simple metrics regarding the accounts principal is assigned to.
     unique_accounts_in_assignments = [x.account_num for x in assignments_for_principals]
-    unique_accounts_in_assignments.sort()
-    unique_accounts_in_assignments = list(set(unique_accounts_in_assignments))
+    ## Sort the account numbers as strings (preserving leading zeros).
+    unique_accounts_in_assignments = sorted(unique_accounts_in_assignments, key=lambda x: (len(x), x))
+    ## Remove duplicates while preserving the sorted order.
+    unique_accounts_in_assignments = list(dict.fromkeys(unique_accounts_in_assignments))
+    ## Count the number of the unique accounts.
     unique_accounts_in_assignments_count = len(unique_accounts_in_assignments)
 
-    ## Evaluate what accounts the principal does and does not have access to.    
-    print(f"\n\nThe principal {requesting_principal_name} has access to these {unique_accounts_in_assignments_count} accounts: \n")
-    for account in unique_accounts_in_assignments:
-        print(f"\t{account}")
+    ## Evaluate what accounts the principal has access to, and does not have access to.
+    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} has access to {unique_accounts_in_assignments_count} account(s): \n")
+    for acct_num in unique_accounts_in_assignments:
+        ## Enrich this data with the account_name.
+        acct_name = ""
+        for a in accounts:
+            if acct_num == a.account_num:
+                acct_name = a.account_name
+        print(f"\t{acct_num} , {acct_name}")
+
     difference = list(set(account_list) - set(unique_accounts_in_assignments))
-    print(f"\n\nThe principal {requesting_principal_name} does NOT have access to these accounts: \n")
-    for account in difference:
-        print(f"\t{account}")
+    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} does NOT have access to the following account(s): \n")
+    for acct_num in difference:
+        ## Enrich this data with the account_name.
+        acct_name = ""
+        for a in accounts:
+            if acct_num == a.account_num:
+                acct_name = a.account_name
+        print(f"\t{acct_num} , {acct_name}") 
+
+    ## Get members of the group.
+    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} has the following members (Identity Center users): \n")
+    group_memberships = identitystore_client.list_group_memberships(
+        IdentityStoreId= identity_store_id,
+        GroupId=requesting_principal_id#,
+        # MaxResults=123,
+        # NextToken='string'
+    )
+    group_memberships_list = group_memberships['GroupMemberships']
+    for membership in group_memberships_list:
+        group_member_id = membership['MemberId']['UserId']
+        for user in users:
+            if group_member_id == user.principal_id:
+                group_member_name = user.principal_name
+                ## Append the member (user) info into the group_members list.
+                group_members.append(PrincipalListPolicy(
+                    principal_id=group_member_id,
+                    principal_name=group_member_name
+                ))
+    group_members_sorted = sorted(group_members, key=lambda x: x.principal_name)
+    for member in group_members_sorted:
+        print(f"\t{member.principal_name}")
+
     print(f"\n")
 
 
@@ -324,13 +379,13 @@ def selectAccount():
         permission_set_desc = permission_set_details.get('Description', '')
         print(f"\t{permission_set_name} - {permission_set_desc}")
 
-    print(f"\n\nPlease wait... processing full list of assignments... this can take a few minutes.\n\n")
-    start_time = time.time()
+    print(f"\n\nThe following is a list of users provisioned to account {account_num} - {account_name}:\n")
 
-    # print(f"\nThe following is a list of provisioned to account {account_num} - {account_name}:\n")
+    print(f"(Please wait... processing full list of assignments. This can take a few minutes.)\n")
+    start_time = time.time()
     
-    ## TODO: Here we can display all the account assignments provisioned for every user/group, but it would be abit of work.
-    ## This is a LARGE RECURSING OPERATION, which usually takes 2-4 minutes.
+    ## In order to do this next step, we need to fetc all the account assignments provisioned for every user/group, then filter based on the account_num.
+    ## This is a RECURSING OPERATION, which can take a few secondes to as much as a few minutes, depending on amount of users in Identity Center.
     for user in users:
         requesting_principal_type = "USER"
         requesting_principal_id = user.principal_id
