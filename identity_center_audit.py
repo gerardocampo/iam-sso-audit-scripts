@@ -214,7 +214,7 @@ def selectUser():
         print(f"\t{acct_num} , {acct_name}") 
 
     ## Get list of groups that a user has membership to.
-    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} is member of the following group(s): \n")
+    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} is member of the following Identity Center group(s): \n")
     group_memberships_for_member_list_pages = identitystore_client.get_paginator('list_group_memberships_for_member').paginate(
         IdentityStoreId=identity_store_id,
         MemberId={'UserId': requesting_principal_id}
