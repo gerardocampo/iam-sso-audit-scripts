@@ -204,7 +204,7 @@ def selectUser():
 
     print(f"\nThe {requesting_principal_type} {requesting_principal_name} has the following account assignments in Identity Center:\n")
 
-    ## Sort the list by "".
+    ## Sort the list.
     # assignments_for_principals_sorted = sorted(assignments_for_principals, key=lambda x: x.effecting_principal_name)
     assignments_for_principals_sorted = sorted(assignments_for_principals, key=lambda x: x.account_num)
 
@@ -286,7 +286,7 @@ def selectGroup():
 
     print(f"\nThe {requesting_principal_type} {requesting_principal_name} has the following account assignments in Identity Center:\n")
 
-    ## Sort the list by "".
+    ## Sort the list.
     # assignments_for_principals_sorted = sorted(assignments_for_principals, key=lambda x: x.effecting_principal_name)
     assignments_for_principals_sorted = sorted(assignments_for_principals, key=lambda x: x.account_num)
 
