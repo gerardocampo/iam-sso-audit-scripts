@@ -48,7 +48,6 @@ class AssignmentsForPrincipalsPolicy(BaseModel):
     permset_desc: Optional[str] = ""
 
 
-
 def main(profile_name=None):        
     session = boto3.Session(profile_name=profile_name)
     AWS_REGION = "us-east-1"
@@ -118,7 +117,6 @@ def main(profile_name=None):
             principal_name=principal_name
         ))
 
-
     ###############################################################
     ## INITIAL PROMPT.
     print(f"\n\n###############################################################")
@@ -129,20 +127,16 @@ def main(profile_name=None):
         sys.exit(1)
     
     type_selection = int(choice)
-
     ## User selection (1).
     if type_selection == 1:
         selectUser()
-
     ## Group selection (2).
     if type_selection == 2:
         selectGroup()
-
     ## Account selection (3).
     if type_selection == 3:
         selectAccount()
     
-
 
 def selectUser():
     ## Print a list of users with index numbers.
@@ -248,7 +242,6 @@ def selectUser():
     print(f"\n")
 
 
-
 def selectGroup():
     ## Print a list of groups with index numbers.
     print(f"\nThis is a list of groups in Identity Store.")
@@ -351,9 +344,7 @@ def selectGroup():
     group_members_for_group_sorted = sorted(group_members_for_group, key=lambda x: x.principal_name)
     for member in group_members_for_group_sorted:
         print(f"\t{member.principal_name}")
-
     print(f"\n")
-
 
 
 def selectAccount():
@@ -433,15 +424,12 @@ def selectAccount():
         if assignment.account_num == account_num:
             print(f"\t{assignment.requesting_principal_type} {assignment.requesting_principal_name} has access to account # {assignment.account_num}, with permission set {assignment.permset_name}, via {assignment.effecting_principal_type} {assignment.effecting_principal_name}.")
     
-    ## How long did this take
+    ## Display how long did this operation take.
     print(f"\n\n(Processing full list of assignments took: %s seconds.)\n" % (time.time() - start_time))
 
 
-
+## Get list of account assignments for a requested principal in Identity Store. This is used by the user, group, and account functions.
 def getAccountAssignmentsForPrincipal(requesting_principal_id, requesting_principal_name, requesting_principal_type):
-    # ## Get list of account assignments for a principal in Identity Store.
-    # report_desc = f'List of account assignments for {requesting_principal_type} principal {requesting_principal_id} in Identity Center:'
-    # print(f"\n{report_desc}")
     account_assignments_for_principal_list_pages = sso_admin_client.get_paginator('list_account_assignments_for_principal').paginate(
         InstanceArn=sso_instance_arn,
         PrincipalId=requesting_principal_id,
@@ -468,15 +456,13 @@ def getAccountAssignmentsForPrincipal(requesting_principal_id, requesting_princi
                     effecting_principal_name = group.principal_name
                     break
         
-
         ## Get the human-readable permission set name of the permission set arn.
         permission_set_details_response = sso_admin_client.describe_permission_set(InstanceArn=sso_instance_arn, PermissionSetArn=permission_set_arn)
         permission_set_details = permission_set_details_response['PermissionSet']
         permission_set_name = permission_set_details['Name']
         permission_set_desc = permission_set_details.get('Description', '')
 
-        # print(f"\t Access to account # {account_id}, with permission set {permission_set_name}, via {effecting_principal_type} {effecting_principal_name}.")
-
+        ## Append to the list of assignments for the requested principal.
         assignments_for_principals.append(AssignmentsForPrincipalsPolicy(
             requesting_principal_id=requesting_principal_id,
             requesting_principal_name=requesting_principal_name,
@@ -489,30 +475,6 @@ def getAccountAssignmentsForPrincipal(requesting_principal_id, requesting_princi
             permset_arn=permission_set_arn,
             permset_desc=permission_set_desc
         ))
-
-
-    # ## Get list of permission sets in Identity Store.
-    # report_desc = 'List of permission sets in Identity Center.'
-    # print(f"\n{report_desc}")
-    # permission_sets_list_pages = sso_admin_client.get_paginator('list_permission_sets').paginate(InstanceArn=sso_instance_arn)
-    # permission_sets_list_build = permission_sets_list_pages.build_full_result()
-    # permission_sets_list = permission_sets_list_build['PermissionSets']
-    # permission_sets_list_json = json.dumps(permission_sets_list, indent=4)
-    # print(f"{permission_sets_list_json}\n")
-
-
-    # ## Get list of accounts for a provisioned permission set in Identity Store.
-    # report_desc = f'List of accounts for permission set {permission_set_arn} in Identity Center.'
-    # print(f"\n{report_desc}")
-    # accounts_for_provisioned_permission_set_list_pages = sso_admin_client.get_paginator('list_accounts_for_provisioned_permission_set').paginate(
-    #     InstanceArn=sso_instance_arn,
-    #     PermissionSetArn=permission_set_arn
-    # )
-    # accounts_for_provisioned_permission_set_list_build = accounts_for_provisioned_permission_set_list_pages.build_full_result()
-    # accounts_for_provisioned_permission_set_list = accounts_for_provisioned_permission_set_list_build['AccountIds']
-    # accounts_for_provisioned_permission_set_list_json = json.dumps(accounts_for_provisioned_permission_set_list, indent=4)
-    # print(f"\n{accounts_for_provisioned_permission_set_list_json}\n")
-
 
 
 ## The starter: 
@@ -532,7 +494,6 @@ if __name__ == "__main__":
             sys.exit(1)
 
     elif aws_profile is None:
-        # aws_profile = get_profile_from_env()    
         if 'AWS_ACCESS_KEY_ID' in os.environ and 'AWS_SECRET_ACCESS_KEY' in os.environ:
             try:
                 test_client = boto3.client('sts', region_name='us-east-1')
