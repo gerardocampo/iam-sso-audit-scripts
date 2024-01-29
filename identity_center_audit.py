@@ -3,6 +3,7 @@ import sys
 import os
 import time
 from pydantic import BaseModel
+from typing import Optional
 
 
 ## Lists that will be using pydantic BaseModels.
@@ -12,6 +13,7 @@ groups = []
 group_members_for_group = []
 group_memberships_for_user = []
 accounts = []
+permission_sets = []
 
 ## Data model policies for various lists.  Using pydantic to allow this data to be manipulated and called more easily.
 
@@ -20,10 +22,16 @@ class PrincipalListPolicy(BaseModel):
     principal_id: str
     principal_name: str
 
-## List of accounts in Organization
+## List of accounts in Organization.
 class AccountsListPolicy(BaseModel):
     account_num: str
     account_name: str
+
+## List of permission sets.
+class PermissionSetsListPolicy(BaseModel):
+    permset_name: str
+    permset_arn: str
+    permset_desc: Optional[str] = ""
 
 ## List of account assignments for principals (users / groups), enriched with human-readable data.
 class AssignmentsForPrincipalsPolicy(BaseModel):
@@ -37,7 +45,7 @@ class AssignmentsForPrincipalsPolicy(BaseModel):
     account_num: str
     permset_name: str
     permset_arn: str
-    permset_desc: str
+    permset_desc: Optional[str] = ""
 
 
 
@@ -115,7 +123,7 @@ def main(profile_name=None):
     ## INITIAL PROMPT.
     print(f"\n\n###############################################################")
     print(f"\nThis is an IAM Identity Center audit script. \n\nTo evaluate the principal or resource, select one of the options from the following...\n")
-    choice = input(f"\tType \"1\" for a list of Identity Center USERS. \n\tType \"2\" for a list of Identity Center GROUPS. \n\tType \"3\" for a list of ACCOUNTS in the Organization. \n\n")
+    choice = input(f"\tType \"1\" for a list of Identity Center USERS. \n\tType \"2\" for a list of Identity Center GROUPS. \n\tType \"3\" for a list of ACCOUNTS in the Organization. \n\n\t")
     while choice not in ['1', '2', '3']:
         print(f"\nInvalid input. Please re-run script and try again.\n")
         sys.exit(1)
@@ -142,10 +150,10 @@ def selectUser():
 
     users_sorted = sorted(users, key=lambda x: x.principal_name)
     for i, user in enumerate(users_sorted):
-        print(f"{i}) {user.principal_name} , {user.principal_id}")
+        print(f"\t{i}) {user.principal_name} , {user.principal_id}")
 
     ## Prompt to select a number.
-    selection_input_value = input(f"\nSelect a number from the list above to look up the principal's account assignments: ")
+    selection_input_value = input(f"\nSelect a number from the list above to look up the principal's account assignments: \n\n\t")
 
     ## Convert the input to an integer.
     try:
@@ -166,7 +174,7 @@ def selectUser():
 
     ## Check if the selected index is within the valid range.
     if 0 <= selected_index < len(users_sorted):
-        print(f"\nSelected: {data_at_index}\n")
+        print(f"\tSelected: {data_at_index}\n")
         requesting_principal_name = data_at_index.principal_name
         requesting_principal_id = data_at_index.principal_id
         requesting_principal_type = "USER"
@@ -248,10 +256,10 @@ def selectGroup():
 
     groups_sorted = sorted(groups, key=lambda x: x.principal_name)
     for i, group in enumerate(groups_sorted):
-        print(f"{i}) {group.principal_name} , {group.principal_id}")
+        print(f"\t{i}) {group.principal_name} , {group.principal_id}")
 
     ## Prompt to select a number.
-    selection_input_value = input(f"\nSelect a number from the list above to look up the principal's account assignments: ")
+    selection_input_value = input(f"\nSelect a number from the list above to look up the principal's account assignments: \n\n\t")
 
     ## Convert the input to an integer.
     selected_index = int(selection_input_value)
@@ -273,7 +281,7 @@ def selectGroup():
 
     ## Check if the selected index is within the valid range.
     if 0 <= selected_index < len(groups_sorted):
-        print(f"\nSelected: {data_at_index}\n")
+        print(f"\tSelected: {data_at_index}\n")
         requesting_principal_name = data_at_index.principal_name
         requesting_principal_id = data_at_index.principal_id
         requesting_principal_type = "GROUP"
@@ -354,10 +362,10 @@ def selectAccount():
 
     accounts_sorted = sorted(accounts, key=lambda x: x.account_name)
     for i, account in enumerate(accounts_sorted):
-        print(f"{i}) {account.account_num} , {account.account_name}")
+        print(f"\t{i}) {account.account_num} , {account.account_name}")
     
     ## Prompt to select a number.
-    selection_input_value = input(f"\nSelect a number from the list above to look up the assignments for this account: \n")
+    selection_input_value = input(f"\nSelect a number from the list above to look up the assignments for this account: \n\n\t")
 
     ## Convert the input to an integer.
     selected_index = int(selection_input_value)
@@ -377,19 +385,11 @@ def selectAccount():
 
     data_at_index = accounts_sorted[selected_index]
 
-    print(f"\nSelected: {data_at_index}")
+    print(f"\tSelected: {data_at_index}")
     account_num = data_at_index.account_num
     account_name = data_at_index.account_name
     
-    # ## Check if the selected index is within the valid range.
-    # if 0 <= selected_index < len(accounts_sorted):
-    #     print(f"\nSelected: {data_at_index}")
-    #     account_num = data_at_index.account_num
-    #     account_name = data_at_index.account_name
-    # else:
-    #     print("Invalid selection. Please choose a number within the valid range.")
-    #     sys.exit(1)
-    
+    ## Get the permission sets provisioned to the account.
     print(f"\nThe following permission sets are provisioned to account {account_num} - {account_name}:\n")
     permission_sets_provisioned_to_account_list_pages = sso_admin_client.get_paginator('list_permission_sets_provisioned_to_account').paginate(
         AccountId=account_num,
@@ -398,31 +398,43 @@ def selectAccount():
     permission_sets_provisioned_to_account_list_build = permission_sets_provisioned_to_account_list_pages.build_full_result()
     permission_sets_provisioned_to_account_list = permission_sets_provisioned_to_account_list_build['PermissionSets']
     for permission_set_arn in permission_sets_provisioned_to_account_list:
-        ## Get the human-readable permission set name of the permission set arn.
+        ## Get the permission set name and description of the permission set.
         permission_set_details_response = sso_admin_client.describe_permission_set(InstanceArn=sso_instance_arn, PermissionSetArn=permission_set_arn)
         permission_set_details = permission_set_details_response['PermissionSet']
         permission_set_name = permission_set_details['Name']
         permission_set_desc = permission_set_details.get('Description', '')
-        print(f"\t{permission_set_name} - {permission_set_desc}")
 
-    print(f"\n\nThe following is a list of users provisioned to account {account_num} - {account_name}:\n")
+        ## Append permission set info to permission set list.
+        permission_sets.append(PermissionSetsListPolicy(
+            permset_name=permission_set_name,
+            permset_desc=permission_set_desc,
+            permset_arn=permission_set_arn
+        ))
+    permission_sets_sorted = sorted(permission_sets, key=lambda x: x.permset_name)
+    for p in permission_sets_sorted:
+        print(f"\t{p.permset_name} , {p.permset_desc}")
 
-    print(f"(Please wait... processing full list of assignments. This can take a few minutes.)\n")
+    ## Get list of users provisioned to the account.
+    print(f"\n\nThe following is a list of users provisioned to account {account_num} - {account_name}: \n")
+
+    print(f"Please wait, this can take a few seconds to a few minutes...")
+    print(f"(Amount of time is dependent on amount of users in Identity Center.)\n")
     start_time = time.time()
     
-    ## In order to do this next step, we need to fetc all the account assignments provisioned for every user/group, then filter based on the account_num.
-    ## This is a RECURSING OPERATION, which can take a few secondes to as much as a few minutes, depending on amount of users in Identity Center.
+    ## In order to do this next step, we need to fetch all the account assignments provisioned for every user/group, then filter this list based on the account_num.
+    ## Depending on amount of users in Identity Center, this is an operation that can take a few seconds to as much as a few minutes.
     for user in users:
         requesting_principal_type = "USER"
         requesting_principal_id = user.principal_id
         requesting_principal_name = user.principal_name
         getAccountAssignmentsForPrincipal(requesting_principal_id, requesting_principal_name, requesting_principal_type)
-    for assignment in assignments_for_principals:
+    assignments_for_principals_sorted = sorted(assignments_for_principals, key=lambda x: x.requesting_principal_name)
+    for assignment in assignments_for_principals_sorted:
         if assignment.account_num == account_num:
             print(f"\t{assignment.requesting_principal_type} {assignment.requesting_principal_name} has access to account # {assignment.account_num}, with permission set {assignment.permset_name}, via {assignment.effecting_principal_type} {assignment.effecting_principal_name}.")
     
     ## How long did this take
-    print(f"\n\nProcessing full list of assignments took: %s seconds.\n" % (time.time() - start_time))
+    print(f"\n\n(Processing full list of assignments took: %s seconds.)\n" % (time.time() - start_time))
 
 
 
