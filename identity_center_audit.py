@@ -65,15 +65,20 @@ def main(profile_name=None):
     org_client = session.client('organizations', region_name=AWS_REGION)
 
     account_list_pages = org_client.get_paginator('list_accounts')
-    for page in account_list_pages.paginate():
-        for account in page["Accounts"]:
-            account_name = account["Name"]
-            account_num = account["Id"]
-            ## Append the account info into the accounts list.
-            accounts.append(AccountsListPolicy(
-                account_num=account_num,
-                account_name=account_name
-            ))
+    try:
+        for page in account_list_pages.paginate():
+            for account in page["Accounts"]:
+                account_name = account["Name"]
+                account_num = account["Id"]
+                ## Append the account info into the accounts list.
+                accounts.append(AccountsListPolicy(
+                    account_num=account_num,
+                    account_name=account_name
+                ))
+    except Exception as e:
+        print(f"\nError: {e}")
+        print(f"Above permissions to AWS Organizations is needed, or Organizations may not be setup in this AWS account.\n")
+        sys.exit(1)       
     global account_list
     account_list = [x.account_num for x in accounts]
 
@@ -85,7 +90,12 @@ def main(profile_name=None):
     identitystore_client = session.client('identitystore', region_name=AWS_REGION)
     sso_instance = sso_admin_client.list_instances()
     # print(f"{sso_instance}\n")
-    identity_store_id = (sso_instance['Instances'][0]['IdentityStoreId'])
+    try:
+        identity_store_id = (sso_instance['Instances'][0]['IdentityStoreId'])
+    except IndexError as e:
+        # print(f"Error: {e}")
+        print(f"\nThis account does not have AWS IAM Identity Center configured.\n")
+        sys.exit(1)       
     sso_instance_arn = (sso_instance['Instances'][0]['InstanceArn'])
     # print(f"\nIdentityStoreId: {identity_store_id}")
     # print(f"SsoInstanceArn: {sso_instance_arn}\n")
@@ -120,7 +130,7 @@ def main(profile_name=None):
     ###############################################################
     ## INITIAL PROMPT.
     print(f"\n\n###############################################################")
-    print(f"\nThis is an IAM Identity Center audit script. \n\nTo evaluate the principal or resource, select one of the options from the following...\n")
+    print(f"\n\nThank you for using this IAM Identity Center audit script. \n\n\nTo evaluate a principal or resource, select one of the options from the following...\n")
     choice = input(f"\tType \"1\" for a list of Identity Center USERS. \n\tType \"2\" for a list of Identity Center GROUPS. \n\tType \"3\" for a list of ACCOUNTS in the Organization. \n\n\t")
     while choice not in ['1', '2', '3']:
         print(f"\nInvalid input. Please re-run script and try again.\n")
@@ -140,7 +150,7 @@ def main(profile_name=None):
 
 def selectUser():
     ## Print a list of users with index numbers.
-    print(f"\nThis is a list of users in Identity Store.")
+    print(f"\nThis is a list of USERS in Identity Store.")
 
     users_sorted = sorted(users, key=lambda x: x.principal_name)
     for i, user in enumerate(users_sorted):
@@ -177,7 +187,7 @@ def selectUser():
         sys.exit(1)
 
     ## Get list of groups that a user has membership to.
-    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} is member of the following Identity Center group(s): \n")
+    print(f"\n\n{requesting_principal_type} {requesting_principal_name} is member of the following Identity Center group(s): \n")
     group_memberships_for_member_list_pages = identitystore_client.get_paginator('list_group_memberships_for_member').paginate(
         IdentityStoreId=identity_store_id,
         MemberId={'UserId': requesting_principal_id}
@@ -202,7 +212,7 @@ def selectUser():
     ## Get account assignments.
     getAccountAssignmentsForPrincipal(requesting_principal_id, requesting_principal_name, requesting_principal_type)
 
-    print(f"\nThe {requesting_principal_type} {requesting_principal_name} has the following account assignments in Identity Center:\n")
+    print(f"\n{requesting_principal_type} {requesting_principal_name} has the following account assignments in Identity Center:\n")
 
     ## Sort the list.
     # assignments_for_principals_sorted = sorted(assignments_for_principals, key=lambda x: x.effecting_principal_name)
@@ -221,7 +231,7 @@ def selectUser():
     unique_accounts_in_assignments_count = len(unique_accounts_in_assignments)
 
     ## Evaluate what accounts the principal has access to, and does not have access to.
-    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} has access to {unique_accounts_in_assignments_count} account(s) in the organization: \n")
+    print(f"\n\n{requesting_principal_type} {requesting_principal_name} has access to {unique_accounts_in_assignments_count} account(s) in the organization: \n")
     for acct_num in unique_accounts_in_assignments:
         ## Enrich this data with the account_name.
         acct_name = ""
@@ -231,7 +241,7 @@ def selectUser():
         print(f"\t{acct_num} , {acct_name}")
 
     difference = list(set(account_list) - set(unique_accounts_in_assignments))
-    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} does NOT have access to the following account(s) in the organization: \n")
+    print(f"\n\n{requesting_principal_type} {requesting_principal_name} does NOT have access to the following account(s) in the organization: \n")
     for acct_num in difference:
         ## Enrich this data with the account_name.
         acct_name = ""
@@ -244,7 +254,7 @@ def selectUser():
 
 def selectGroup():
     ## Print a list of groups with index numbers.
-    print(f"\nThis is a list of groups in Identity Store.")
+    print(f"\nThis is a list of GROUPS in Identity Store.")
 
     groups_sorted = sorted(groups, key=lambda x: x.principal_name)
     for i, group in enumerate(groups_sorted):
@@ -284,7 +294,7 @@ def selectGroup():
     ## Get account assignments.
     getAccountAssignmentsForPrincipal(requesting_principal_id, requesting_principal_name, requesting_principal_type)
 
-    print(f"\nThe {requesting_principal_type} {requesting_principal_name} has the following account assignments in Identity Center:\n")
+    print(f"\n{requesting_principal_type} {requesting_principal_name} has the following account assignments in Identity Center:\n")
 
     ## Sort the list.
     # assignments_for_principals_sorted = sorted(assignments_for_principals, key=lambda x: x.effecting_principal_name)
@@ -303,7 +313,7 @@ def selectGroup():
     unique_accounts_in_assignments_count = len(unique_accounts_in_assignments)
 
     ## Evaluate what accounts the principal has access to, and does not have access to.
-    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} has access to {unique_accounts_in_assignments_count} account(s) in the organization: \n")
+    print(f"\n\n{requesting_principal_type} {requesting_principal_name} has access to {unique_accounts_in_assignments_count} account(s) in the organization: \n")
     for acct_num in unique_accounts_in_assignments:
         ## Enrich this data with the account_name.
         acct_name = ""
@@ -313,7 +323,7 @@ def selectGroup():
         print(f"\t{acct_num} , {acct_name}")
 
     difference = list(set(account_list) - set(unique_accounts_in_assignments))
-    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} does NOT have access to the following account(s) in the organization: \n")
+    print(f"\n\n{requesting_principal_type} {requesting_principal_name} does NOT have access to the following account(s) in the organization: \n")
     for acct_num in difference:
         ## Enrich this data with the account_name.
         acct_name = ""
@@ -323,7 +333,7 @@ def selectGroup():
         print(f"\t{acct_num} , {acct_name}") 
 
     ## Get members of the group.
-    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} has the following members (Identity Center users): \n")
+    print(f"\n\n{requesting_principal_type} {requesting_principal_name} has the following members (Identity Center users): \n")
     group_memberships = identitystore_client.list_group_memberships(
         IdentityStoreId= identity_store_id,
         GroupId=requesting_principal_id#,
@@ -349,7 +359,7 @@ def selectGroup():
 
 def selectAccount():
     ## Print a list of accounts with index numbers.
-    print(f"\nThis is a list of accounts in the organization.\n")
+    print(f"\nThis is a list of ACCOUNTS in the AWS Organization.\n")
 
     accounts_sorted = sorted(accounts, key=lambda x: x.account_name)
     for i, account in enumerate(accounts_sorted):
@@ -376,12 +386,12 @@ def selectAccount():
 
     data_at_index = accounts_sorted[selected_index]
 
-    print(f"\tSelected: {data_at_index}")
+    print(f"\tSelected: {data_at_index}\n")
     account_num = data_at_index.account_num
     account_name = data_at_index.account_name
     
     ## Get the permission sets provisioned to the account.
-    print(f"\nThe following permission sets are provisioned to account {account_num} - {account_name}:\n")
+    print(f"\nThe following is a list of permission sets provisioned to account {account_num} - {account_name}:\n")
     permission_sets_provisioned_to_account_list_pages = sso_admin_client.get_paginator('list_permission_sets_provisioned_to_account').paginate(
         AccountId=account_num,
         InstanceArn=sso_instance_arn
@@ -403,10 +413,10 @@ def selectAccount():
         ))
     permission_sets_sorted = sorted(permission_sets, key=lambda x: x.permset_name)
     for p in permission_sets_sorted:
-        print(f"\t{p.permset_name} , {p.permset_desc}")
+        print(f"\t{p.permset_name}")
 
-    ## Get list of users provisioned to the account.
-    print(f"\n\nThe following is a list of users provisioned to account {account_num} - {account_name}: \n")
+    ## Get list of permission assignments of users, provisioned to the account.
+    print(f"\n\nThe following is a list of user permission assignments, provisioned to account {account_num} - {account_name}: ")
 
     print(f"Please wait, this can take a few seconds to a few minutes...")
     print(f"(Amount of time is dependent on amount of users in Identity Center.)\n")
