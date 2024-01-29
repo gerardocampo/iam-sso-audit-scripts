@@ -213,7 +213,7 @@ def selectUser():
         print(f"\t{acct_num} , {acct_name}")
 
     difference = list(set(account_list) - set(unique_accounts_in_assignments))
-    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} does NOT have access to the following account(s): \n")
+    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} does NOT have access to the following account(s) in the organization: \n")
     for acct_num in difference:
         ## Enrich this data with the account_name.
         acct_name = ""
@@ -320,7 +320,7 @@ def selectGroup():
         print(f"\t{acct_num} , {acct_name}")
 
     difference = list(set(account_list) - set(unique_accounts_in_assignments))
-    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} does NOT have access to the following account(s): \n")
+    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} does NOT have access to the following account(s) in the organization: \n")
     for acct_num in difference:
         ## Enrich this data with the account_name.
         acct_name = ""
