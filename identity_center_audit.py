@@ -9,7 +9,8 @@ from pydantic import BaseModel
 assignments_for_principals = []
 users = []
 groups = []
-group_members = []
+group_members_for_group = []
+group_memberships_for_user = []
 accounts = []
 
 ## Data model policies for various lists.  Using pydantic to allow this data to be manipulated and called more easily.
@@ -221,15 +222,22 @@ def selectUser():
     )
     group_memberships_for_member_list_build = group_memberships_for_member_list_pages.build_full_result()
     group_memberships_for_member_list = group_memberships_for_member_list_build['GroupMemberships']
-    # group_memberships_for_member_list_json = json.dumps(group_memberships_for_member_list, indent=4)
-    # print(group_memberships_for_member_list_json)
-    ## The list of groups:
+
+    ## The list of groups that user is member of:
     for membership in group_memberships_for_member_list:
         group_id = membership['GroupId']
         for g in groups:
             if group_id == g.principal_id:
                 group_name = g.principal_name
-        print(f"\t{group_id} , {group_name}")
+                ## Append the enriched info to a group membership list.
+                group_memberships_for_user.append(PrincipalListPolicy(
+                    principal_id=group_id,
+                    principal_name=group_name
+                ))
+    group_memberships_for_user_sorted = sorted(group_memberships_for_user, key=lambda x: x.principal_name)
+    for g in group_memberships_for_user_sorted:
+        print(f"\t{g.principal_id} , {g.principal_name}")
+        # print(f"\t{group_id} , {group_name}")
     print(f"\n")
 
 
@@ -328,12 +336,12 @@ def selectGroup():
             if group_member_id == user.principal_id:
                 group_member_name = user.principal_name
                 ## Append the member (user) info into the group_members list.
-                group_members.append(PrincipalListPolicy(
+                group_members_for_group.append(PrincipalListPolicy(
                     principal_id=group_member_id,
                     principal_name=group_member_name
                 ))
-    group_members_sorted = sorted(group_members, key=lambda x: x.principal_name)
-    for member in group_members_sorted:
+    group_members_for_group_sorted = sorted(group_members_for_group, key=lambda x: x.principal_name)
+    for member in group_members_for_group_sorted:
         print(f"\t{member.principal_name}")
 
     print(f"\n")
