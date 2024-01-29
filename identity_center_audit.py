@@ -203,7 +203,7 @@ def selectUser():
     unique_accounts_in_assignments_count = len(unique_accounts_in_assignments)
 
     ## Evaluate what accounts the principal has access to, and does not have access to.
-    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} has access to {unique_accounts_in_assignments_count} account(s): \n")
+    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} has access to {unique_accounts_in_assignments_count} account(s) in the organization: \n")
     for acct_num in unique_accounts_in_assignments:
         ## Enrich this data with the account_name.
         acct_name = ""
@@ -310,7 +310,7 @@ def selectGroup():
     unique_accounts_in_assignments_count = len(unique_accounts_in_assignments)
 
     ## Evaluate what accounts the principal has access to, and does not have access to.
-    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} has access to {unique_accounts_in_assignments_count} account(s): \n")
+    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} has access to {unique_accounts_in_assignments_count} account(s) in the organization: \n")
     for acct_num in unique_accounts_in_assignments:
         ## Enrich this data with the account_name.
         acct_name = ""
