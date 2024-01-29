@@ -182,6 +182,30 @@ def selectUser():
         print("Invalid selection. Please choose a number within the valid range.")
         sys.exit(1)
 
+    ## Get list of groups that a user has membership to.
+    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} is member of the following Identity Center group(s): \n")
+    group_memberships_for_member_list_pages = identitystore_client.get_paginator('list_group_memberships_for_member').paginate(
+        IdentityStoreId=identity_store_id,
+        MemberId={'UserId': requesting_principal_id}
+    )
+    group_memberships_for_member_list_build = group_memberships_for_member_list_pages.build_full_result()
+    group_memberships_for_member_list = group_memberships_for_member_list_build['GroupMemberships']
+
+    for membership in group_memberships_for_member_list:
+        group_id = membership['GroupId']
+        for g in groups:
+            if group_id == g.principal_id:
+                group_name = g.principal_name
+                ## Append the enriched info to a group membership list.
+                group_memberships_for_user.append(PrincipalListPolicy(
+                    principal_id=group_id,
+                    principal_name=group_name
+                ))
+    group_memberships_for_user_sorted = sorted(group_memberships_for_user, key=lambda x: x.principal_name)
+    for g in group_memberships_for_user_sorted:
+        print(f"\t{g.principal_id} , {g.principal_name}")
+
+    ## Get account assignments.
     getAccountAssignmentsForPrincipal(requesting_principal_id, requesting_principal_name, requesting_principal_type)
 
     print(f"\nThe {requesting_principal_type} {requesting_principal_name} has the following account assignments in Identity Center:\n")
@@ -221,31 +245,6 @@ def selectUser():
             if acct_num == a.account_num:
                 acct_name = a.account_name
         print(f"\t{acct_num} , {acct_name}") 
-
-    ## Get list of groups that a user has membership to.
-    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} is member of the following Identity Center group(s): \n")
-    group_memberships_for_member_list_pages = identitystore_client.get_paginator('list_group_memberships_for_member').paginate(
-        IdentityStoreId=identity_store_id,
-        MemberId={'UserId': requesting_principal_id}
-    )
-    group_memberships_for_member_list_build = group_memberships_for_member_list_pages.build_full_result()
-    group_memberships_for_member_list = group_memberships_for_member_list_build['GroupMemberships']
-
-    ## The list of groups that user is member of:
-    for membership in group_memberships_for_member_list:
-        group_id = membership['GroupId']
-        for g in groups:
-            if group_id == g.principal_id:
-                group_name = g.principal_name
-                ## Append the enriched info to a group membership list.
-                group_memberships_for_user.append(PrincipalListPolicy(
-                    principal_id=group_id,
-                    principal_name=group_name
-                ))
-    group_memberships_for_user_sorted = sorted(group_memberships_for_user, key=lambda x: x.principal_name)
-    for g in group_memberships_for_user_sorted:
-        print(f"\t{g.principal_id} , {g.principal_name}")
-        # print(f"\t{group_id} , {group_name}")
     print(f"\n")
 
 
@@ -289,6 +288,7 @@ def selectGroup():
         print("Invalid selection. Please choose a number within the valid range.")
         sys.exit(1)
 
+    ## Get account assignments.
     getAccountAssignmentsForPrincipal(requesting_principal_id, requesting_principal_name, requesting_principal_type)
 
     print(f"\nThe {requesting_principal_type} {requesting_principal_name} has the following account assignments in Identity Center:\n")
@@ -421,7 +421,7 @@ def selectAccount():
     print(f"(Amount of time is dependent on amount of users in Identity Center.)\n")
     start_time = time.time()
     
-    ## In order to do this next step, we need to fetch all the account assignments provisioned for every user/group, then filter this list based on the account_num.
+    ## Get all the account assignments provisioned for every user, then filter this list based on the account_num.
     ## Depending on amount of users in Identity Center, this is an operation that can take a few seconds to as much as a few minutes.
     for user in users:
         requesting_principal_type = "USER"
