@@ -212,6 +212,24 @@ def selectUser():
             if acct_num == a.account_num:
                 acct_name = a.account_name
         print(f"\t{acct_num} , {acct_name}") 
+
+    ## Get list of groups that a user has membership to.
+    print(f"\n\nThe {requesting_principal_type} {requesting_principal_name} is member of the following group(s): \n")
+    group_memberships_for_member_list_pages = identitystore_client.get_paginator('list_group_memberships_for_member').paginate(
+        IdentityStoreId=identity_store_id,
+        MemberId={'UserId': requesting_principal_id}
+    )
+    group_memberships_for_member_list_build = group_memberships_for_member_list_pages.build_full_result()
+    group_memberships_for_member_list = group_memberships_for_member_list_build['GroupMemberships']
+    # group_memberships_for_member_list_json = json.dumps(group_memberships_for_member_list, indent=4)
+    # print(group_memberships_for_member_list_json)
+    ## The list of groups:
+    for membership in group_memberships_for_member_list:
+        group_id = membership['GroupId']
+        for g in groups:
+            if group_id == g.principal_id:
+                group_name = g.principal_name
+        print(f"\t{group_id} , {group_name}")
     print(f"\n")
 
 
