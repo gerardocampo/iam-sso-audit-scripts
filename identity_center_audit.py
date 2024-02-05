@@ -15,7 +15,7 @@ group_memberships_for_user = []
 accounts = []
 permission_sets = []
 
-## Data model policies for various lists.  Using pydantic to allow this data to be manipulated and called more easily.
+## Policies for various lists.  Using pydantic to allow this data to be manipulated and called more easily.
 
 ## User and group lists.
 class PrincipalListPolicy(BaseModel):
@@ -131,8 +131,8 @@ def main(profile_name=None):
     ## INITIAL PROMPT.
     print(f"\n\n###############################################################")
     print(f"\n\nThank you for using this IAM Identity Center audit script. \n\n\nTo evaluate a principal or resource, select one of the options from the following...\n")
-    choice = input(f"\tType \"1\" for a list of Identity Center USERS. \n\tType \"2\" for a list of Identity Center GROUPS. \n\tType \"3\" for a list of ACCOUNTS in the Organization. \n\n\t")
-    while choice not in ['1', '2', '3']:
+    choice = input(f"\tType \"1\" for a list of Identity Center USERS. \n\tType \"2\" for a list of Identity Center GROUPS. \n\tType \"3\" for a list of ACCOUNTS in the Organization. \n\tType \"4\" for a list of Identity Center PERMISSION SETS. \n\n\t")
+    while choice not in ['1', '2', '3', '4']:
         print(f"\nInvalid input. Please re-run script and try again.\n")
         sys.exit(1)
     
@@ -146,7 +146,9 @@ def main(profile_name=None):
     ## Account selection (3).
     if type_selection == 3:
         selectAccount()
-    
+    ## Account selection (4).
+    if type_selection == 4:
+        selectPermissionSet()
 
 def selectUser():
     ## Print a list of users with index numbers.
@@ -178,7 +180,7 @@ def selectUser():
 
     ## Check if the selected index is within the valid range.
     if 0 <= selected_index < len(users_sorted):
-        print(f"\tSelected: {data_at_index}\n")
+        print(f"\tYou selected: {data_at_index}\n")
         requesting_principal_name = data_at_index.principal_name
         requesting_principal_id = data_at_index.principal_id
         requesting_principal_type = "USER"
@@ -283,7 +285,7 @@ def selectGroup():
 
     ## Check if the selected index is within the valid range.
     if 0 <= selected_index < len(groups_sorted):
-        print(f"\tSelected: {data_at_index}\n")
+        print(f"\tYou selected: {data_at_index}\n")
         requesting_principal_name = data_at_index.principal_name
         requesting_principal_id = data_at_index.principal_id
         requesting_principal_type = "GROUP"
@@ -386,7 +388,7 @@ def selectAccount():
 
     data_at_index = accounts_sorted[selected_index]
 
-    print(f"\tSelected: {data_at_index}\n")
+    print(f"\tYou selected: {data_at_index}\n")
     account_num = data_at_index.account_num
     account_name = data_at_index.account_name
     
@@ -416,7 +418,7 @@ def selectAccount():
         print(f"\t{p.permset_name}")
 
     ## Get list of permission assignments of users, provisioned to the account.
-    print(f"\n\nThe following is a list of user permission assignments, provisioned to account {account_num} - {account_name}: ")
+    print(f"\n\nThe following is a list of principal (user/group) permission assignments, provisioned to account {account_num} - {account_name}: ")
 
     print(f"Please wait, this can take a few seconds to a few minutes...")
     print(f"(Amount of time is dependent on amount of users in Identity Center.)\n")
@@ -436,6 +438,108 @@ def selectAccount():
     
     ## Display how long did this operation take.
     print(f"\n\n(Processing full list of assignments took: %s seconds.)\n" % (time.time() - start_time))
+
+
+def selectPermissionSet():
+    ## Print a list of users with index numbers.
+    print(f"\nThis is a list of PERMISSION SETS in Identity Store.")
+    permission_sets_list_pages = sso_admin_client.get_paginator('list_permission_sets').paginate(InstanceArn=sso_instance_arn)
+    permission_sets_list_build = permission_sets_list_pages.build_full_result()
+    permission_sets_list = permission_sets_list_build['PermissionSets']
+    # permission_sets_list_json = json.dumps(permission_sets_list, indent=4)
+    for permission_set_arn in permission_sets_list:
+        # print(ps)
+        ## Get the permission set name and description of the permission set.
+        permission_set_details_response = sso_admin_client.describe_permission_set(InstanceArn=sso_instance_arn, PermissionSetArn=permission_set_arn)
+        permission_set_details = permission_set_details_response['PermissionSet']
+        permission_set_name = permission_set_details['Name']
+        permission_set_desc = permission_set_details.get('Description', '')
+
+        ## Append permission set info to permission set list.
+        permission_sets.append(PermissionSetsListPolicy(
+            permset_name=permission_set_name,
+            permset_desc=permission_set_desc,
+            permset_arn=permission_set_arn
+        ))
+    permission_sets_sorted = sorted(permission_sets, key=lambda x: x.permset_name)
+    for i, permset in enumerate(permission_sets_sorted):
+        print(f"\t{i}) {permset.permset_name} , {permset.permset_desc}")
+    
+    ## Prompt to select a number.
+    selection_input_value = input(f"\nSelect a number from the list above to look up the permission set's THINGS..........: \n\n\t")
+
+    ## Convert the input to an integer.
+    try:
+        selected_index = int(selection_input_value)
+    except:
+        print(f"\nInvalid selection. Please choose a number within the valid range.")
+        sys.exit(1)
+
+    if 0 <= selected_index < len(permission_sets_sorted):
+        input_value = "Good"
+    else:
+        input_value = "Bad"
+    if input_value == "Bad":
+        print("Invalid selection. Please choose a number within the valid range.")
+        sys.exit(1)
+
+    data_at_index = permission_sets_sorted[selected_index]
+
+    ## Check if the selected index is within the valid range.
+    if 0 <= selected_index < len(permission_sets_sorted):
+        print(f"\n\tYou selected: \n\t{data_at_index}\n")
+        requesting_permset_arn = data_at_index.permset_arn
+        requesting_permset_name = data_at_index.permset_name
+    else:
+        print("Invalid selection. Please choose a number within the valid range.")
+        sys.exit(1)
+
+    ## Get list of accounts provisioned to the permission set.
+    print(f"\nThe following is a list of accounts in account assignments with the \'{requesting_permset_name}\' permission set:\n")
+    accounts_for_provisioned_permset_list_pages = sso_admin_client.get_paginator('list_accounts_for_provisioned_permission_set').paginate(
+        InstanceArn=sso_instance_arn,
+        PermissionSetArn=requesting_permset_arn
+        )
+    accounts_for_provisioned_permset_list_build = accounts_for_provisioned_permset_list_pages.build_full_result()
+    accounts_for_provisioned_permset_list = accounts_for_provisioned_permset_list_build['AccountIds']
+    
+    ## Get name of account and populate a new list to be sorted.
+    permset_accounts_list = []
+    for a in accounts_for_provisioned_permset_list:
+        for account in accounts:
+            if account.account_num == a:
+                ## Append account info to account list for permission set, that will be sorted alphabetically.
+                permset_accounts_list.append(AccountsListPolicy(
+                    account_num=account.account_num,
+                    account_name=account.account_name
+                ))
+                break
+    ## Sort the list.
+    permset_accounts_list_sorted = sorted(permset_accounts_list, key=lambda x: x.account_name)
+    for a in permset_accounts_list_sorted:
+        print(f"\t{a.account_name} , {a.account_num}")
+
+    ## Get all the account assignments that permission set is provisioned with.
+    print(f"\n\nThe following is a list of principal (user/group) permission assignments, provisioned to account, with the \'{requesting_permset_name}\' permission set. ")
+    print(f"\nPlease wait, this can take a few seconds to a few minutes...")
+    print(f"(Amount of time is dependent on amount of users in Identity Center.)\n")
+    start_time = time.time()
+    
+    ## Depending on amount of users in Identity Center, this is an operation that can take a few seconds to as much as a few minutes.
+    for user in users:
+        requesting_principal_type = "USER"
+        requesting_principal_id = user.principal_id
+        requesting_principal_name = user.principal_name
+        getAccountAssignmentsForPrincipal(requesting_principal_id, requesting_principal_name, requesting_principal_type)
+    assignments_for_principals_sorted = sorted(assignments_for_principals, key=lambda x: x.requesting_principal_name)
+    for assignment in assignments_for_principals_sorted:
+        if assignment.permset_arn == requesting_permset_arn:
+            print(f"\t{assignment.requesting_principal_type} {assignment.requesting_principal_name} has access to account # {assignment.account_num}, with permission set {assignment.permset_name}, via {assignment.effecting_principal_type} {assignment.effecting_principal_name}.")
+    
+    ## Display how long did this operation take.
+    print(f"\n\n(Processing full list of assignments took: %s seconds.)\n" % (time.time() - start_time))
+
+    print(f"\n")
 
 
 ## Get list of account assignments for a requested principal in Identity Store. This is used by the user, group, and account functions.
